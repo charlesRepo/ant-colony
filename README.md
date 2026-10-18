@@ -2,6 +2,8 @@
 
 An ant colony simulation that runs in the browser (p5.js). It started as a Processing (Java) sketch, which is kept in `archive/`.
 
+**▶ Play it live: [charlesrepo.github.io/ant-colony](https://charlesrepo.github.io/ant-colony/)**
+
 ## Project structure
 
 ```
@@ -19,7 +21,7 @@ LICENSE           GNU GPL v2
 
 ## How to run
 
-- **Just play:** open `index.html` in a browser. Serving the folder with a simple HTTP server (or VS Code's Live Server) is recommended. p5 loads from `app/vendor/p5.min.js` if you put a copy there, otherwise from a CDN.
+- **Just play:** go to [the live version](https://charlesrepo.github.io/ant-colony/), or open `index.html` locally in a browser. Serving the folder with a simple HTTP server (or VS Code's Live Server) is recommended. p5 loads from `app/vendor/p5.min.js` if you put a copy there, otherwise from a CDN.
 - **Develop:** the build tooling lives in `app/`:
   - `cd app`
   - `npm install`
