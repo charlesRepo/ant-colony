@@ -60,7 +60,7 @@ Times below assume 60 frames per second. The simulation counts frames, so on a s
 
 - The colony starts with **30 ants** at the nest, and there is no food until you place some.
 - At most **100 ants can be alive** at once. Dead ants don't count.
-- **New ants hatch on their own**, so the colony recovers even if every ant is lost. With an empty nest, one ant hatches every 3–9 seconds, at random. That's enough to hold an unfed colony at about 30–40 ants.
+- **New ants hatch on their own**, so the colony recovers even if every ant is lost. With an empty nest, one ant hatches every 4–14 seconds, at random.
 - **Food speeds up hatching.** Every piece brought home goes into the nest's reserve: sugar adds 2, biscuit adds 1, up to 60.
   - Every 8 in reserve adds the base hatching rate again, up to 6× as often.
   - Every 10 in reserve adds one more ant per hatching, up to 5 at once.

@@ -6,11 +6,10 @@ import { TRAIL } from './Pheromones.js';
 const SWARM_SIZE = 5;          // defenders on the antlion that make it retreat
 const SWARM_HIDE_FRAMES = 420;
 const SPACING = 9;             // closest two ants fighting the antlion may stand
-// Hatching: with an empty nest a new ant hatches every 3-9 s, at random, which holds an unfed colony
-// near its starting size. Food brought home goes into a reserve (sugar counts double); the bigger
-// the reserve, the more often ants hatch and the more hatch at once. Newborns eat from the reserve,
-// so the boom fades once food stops coming in.
-const BIRTH_FRAMES = [180, 540];
+// Hatching: with an empty nest a new ant hatches every 4-14 s, at random. Food brought home goes
+// into a reserve (sugar counts double); the bigger the reserve, the more often ants hatch and the
+// more hatch at once. Newborns eat from the reserve, so the boom fades once food stops coming in.
+const BIRTH_FRAMES = [240, 840];
 const RESERVE_PER_SPEEDUP = 8;  // each 8 units in reserve adds the base hatching rate again...
 const MAX_SPEEDUP = 6;          // ...up to 6x as often
 const RESERVE_PER_EXTRA = 10;   // each 10 units in reserve adds one more ant per hatching...
