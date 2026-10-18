@@ -79,7 +79,7 @@ window.draw = function () {
   human.update();
 
   land.display();
-  field.display();
+  if (panel.showTrails) field.display();
   colony.displayGround(theme);
   for (const f of foods) f.display();
   colony.display(theme);

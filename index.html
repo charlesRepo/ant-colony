@@ -114,7 +114,12 @@
           </section>
 
           <section class="group" aria-labelledby="trails-title">
-            <h2 class="group__title" id="trails-title">Trails</h2>
+            <div class="group__head">
+              <h2 class="group__title" id="trails-title">Trails</h2>
+              <label class="toggle">Show <kbd>T</kbd>
+                <input class="switch" type="checkbox" role="switch" id="trails-toggle" checked aria-label="Show pheromone trails" />
+              </label>
+            </div>
             <ul class="legend">
               <li title="Laid by ants out searching; leads back to the nest"><span class="legend__swatch" data-trail="home"></span>Home</li>
               <li title="Laid by ants carrying biscuit; leads to biscuit"><span class="legend__swatch" data-trail="biscuit"></span>Biscuit</li>

@@ -40,6 +40,7 @@ The canvas is the ground the colony lives on; everything you can do is in the co
 | **Biscuit / Sugar / Toxic** (keys **1** / **2** / **3**) | Picks a food. Each click on the ground then drops a pile of it; place as many piles of each kind as you like. Piles are kept clear of the edges and of the two holes. |
 | **Antlion** switch | Releases the antlion from its pit. Switching it off sends it back home. |
 | **Human** switch | While on, clicking an ant steps on it. |
+| **Trails** switch (key **T**) | Shows or hides the pheromone trails on the ground. Ants still lay and follow them while they're hidden. |
 | **Esc** | Puts away the selected food or the human. Clicking the selected food again does the same. |
 | **Palette** | Loam (dark) or Dune (light). Your choice is remembered in this browser. |
 | **Reset** | Starts over: 30 ants, no food, no trails or bodies, antlion off, all counts back to zero. |

@@ -21,7 +21,7 @@ export class ControlPanel {
       stored: $('#stat-stored'), born: $('#stat-born'), aged: $('#stat-aged'), poisoned: $('#stat-poisoned'), eaten: $('#stat-eaten'), crushed: $('#stat-crushed'),
       tools: byData('tool'), piles: byData('piles'), legend: byData('trail'), themes: byData('theme-option'),
       predator: $('#predator-toggle'), predatorStatus: $('#predator-status'),
-      human: $('#human-toggle'), humanStatus: $('#human-status'),
+      human: $('#human-toggle'), humanStatus: $('#human-status'), trails: $('#trails-toggle'),
       hatch: $('#hatch-rate'), hint: $('#place-hint'), hintText: $('#place-hint-text'), reset: $('#reset'),
     };
     this.el.add1.addEventListener('click', () => onAddAnts(1));
@@ -35,11 +35,14 @@ export class ControlPanel {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (TOOL_KEYS[e.key]) this.selectTool(TOOL_KEYS[e.key]);
       else if (e.key === 'Escape') this.selectTool(null);
+      else if (e.key.toLowerCase() === 't') this.el.trails.checked = !this.el.trails.checked;
     });
   }
   get savedTheme() {
     try { const name = localStorage.getItem(THEME_KEY); return THEMES[name] ? name : null; } catch { return null; }
   }
+  // Hiding the trails only stops drawing them; ants still lay and follow them.
+  get showTrails() { return this.el.trails.checked; }
   // Selecting the active tool again (or Escape) puts it away.
   selectTool(tool) { this.setTool(tool && tool !== this.tool ? tool : null); }
   // What a click on the ground does: drop a food ('biscuit', 'sugar', 'toxic'), step on an ant
