@@ -19,5 +19,8 @@ How to run:
 
 Notes:
 - The JS port uses p5.js and mirrors the OOP structure of the original.
-- Menu, predator toggle, food types (biscuit/sugar/toxic), pheromone trails, and visuals are preserved.
+- The canvas is only the playfield; the control panel is HTML (`JS/index.html`, wired up in `JS/src/ControlPanel.js`). It adds ants (up to 100), places any number of biscuit/sugar/toxic piles (keys 1/2/3, Esc to stop), toggles the antlion, and switches palettes.
+- New ants also hatch from the nest on their own at random intervals (every 4–14 s, up to 100 alive), so the colony recovers even if the antlion eats every ant.
+- Biscuit and sugar each leave their own food trail. Sugar is worth more: an ant heading for biscuit switches to a sugar trail as soon as it crosses one.
+- Colour palettes (Loam, dark; Dune, light) are defined in two places with matching ids: panel colours in `JS/style.css`, canvas colours in `JS/src/theme.js`.
  - Classes are split under `JS/src/` and bundled via webpack to `JS/dist/bundle.js`. p5 is treated as an external global; it loads from `JS/vendor/p5.min.js` (preferred) or falls back to CDNs via `JS/loader.js`.

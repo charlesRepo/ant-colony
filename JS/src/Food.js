@@ -1,109 +1,67 @@
-export class Food {
-  constructor(location) { this.location = location ? location.copy() : null; }
-  setAlpha(selected) { return selected ? 255 : 100; }
-  foodUnit(x, y, wSize, hSize, selected, foodType) {
-    this.setFoodColor(selected, foodType);
-    this.displayFoodUnit(x, y, wSize, hSize);
+// `sense` is how far away an ant can smell a pile of that kind; `value` is how much ants want it
+// (sugar beats biscuit; toxic food looks like ordinary food to them).
+export const FOOD_TYPES = {
+  biscuit: { label: 'Biscuit', value: 1, sense: 100, fill: [206, 160, 94], edge: [132, 92, 46], corner: 1 },
+  sugar: { label: 'Sugar', value: 2, sense: 150, fill: [250, 248, 240], edge: [176, 170, 156], corner: 0.5 },
+  toxic: { label: 'Toxic', value: 1, sense: 100, fill: [164, 214, 46], edge: [62, 96, 18], corner: 2, toxic: true },
+};
+
+const GRID = 5;   // a pile is GRID x GRID units
+const UNIT = 5;   // spacing between units, in px
+
+function layout() {
+  const half = (GRID - 1) * UNIT / 2, units = [];
+  for (let i = 0; i < GRID; i++) {
+    for (let j = 0; j < GRID; j++) {
+      units.push({ x: i * UNIT - half + random(-0.6, 0.6), y: j * UNIT - half + random(-0.6, 0.6), rot: random(-0.35, 0.35), shade: random(-16, 16) });
+    }
   }
-  setFoodColor(selected, foodType) {
-    if (foodType === 0) this.displayBiscuit(0);
-    if (foodType === 1) this.displayBiscuit(this.setAlpha(false));
-    if (foodType === 1 && selected) this.displayBiscuit(this.setAlpha(true));
-    if (foodType === 2) this.displaySugar(this.setAlpha(false));
-    if (foodType === 2 && selected) this.displaySugar(this.setAlpha(true));
-    if (foodType === 3) this.displayToxic(this.setAlpha(false));
-    if (foodType === 3 && selected) this.displayToxic(this.setAlpha(true));
-  }
-  displayFoodUnit(x, y, wSize, hSize) {
-    stroke(100);
-    strokeWeight(0.5);
-    rectMode(CENTER);
-    rect(x, y, wSize, hSize);
-  }
-  displayBiscuit(alpha) { fill(color(200, 190, 120), alpha); }
-  displaySugar(alpha) { fill(color(255, 255, 255), alpha); }
-  displayToxic(alpha) { fill(color(0, 255, 0), alpha); }
+  return units;
 }
 
 export class FoodSource {
-  constructor(location, gridSize) {
+  constructor(type, location) {
+    this.type = type;
+    this.kind = FOOD_TYPES[type];
     this.location = location.copy();
-    this.grid = [];
-    this.rows = gridSize;
-    this.cols = gridSize;
-    this.unitW = this.unitH = this.rows / 5;
-    this.unitSize = this.unitW * this.unitH;
-    this.counter = 0;
-    this.hasParticleFlag = false;
-    this.addFood = false;
-    this.foodStatus = false;
-    this.setGrid();
-    this.counter = this.grid.length;
+    this.radius = (GRID * UNIT) / 2;
+    this.units = layout();
   }
-  setGrid() {
-    for (let i = 0; i < this.rows; i += this.unitW) {
-      for (let j = 0; j < this.cols; j += this.unitH) {
-        this.grid.push(new Food(createVector(i + this.location.x, j + this.location.y)));
-      }
+  get isEmpty() { return this.units.length === 0; }
+  get isToxic() { return !!this.kind.toxic; }
+  // Remove the unit nearest to `from`; returns false once the pile is gone.
+  take(from) {
+    if (this.isEmpty) return false;
+    let best = 0, bestD = Infinity;
+    this.units.forEach((u, i) => {
+      const d = dist(from.x, from.y, this.location.x + u.x, this.location.y + u.y);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    this.units.splice(best, 1);
+    return true;
+  }
+  display(alpha = 255) { FoodSource.draw(this.kind, this.location.x, this.location.y, this.units, alpha); }
+
+  static draw(kind, x, y, units, alpha) {
+    if (kind.toxic) {
+      noStroke();
+      for (let r = 34; r > 14; r -= 5) { fill(kind.fill[0], kind.fill[1], kind.fill[2], alpha * 0.045); circle(x, y, r); }
+    }
+    rectMode(CENTER);
+    strokeWeight(0.6);
+    stroke(kind.edge[0], kind.edge[1], kind.edge[2], alpha);
+    for (const u of units) {
+      push();
+      translate(x + u.x, y + u.y);
+      rotate(u.rot);
+      fill(kind.fill[0] + u.shade, kind.fill[1] + u.shade, kind.fill[2] + u.shade * 0.6, alpha);
+      rect(0, 0, 4.4, 4.4, kind.corner);
+      pop();
     }
   }
-  noFood() { return this.addFood; }
-  getFoodStatus(status) { this.foodStatus = !!status; return this.foodStatus; }
-  setFoodStatus() {
-    if (this.getFoodStatus(this.foodStatus)) { this.addFood = true; return true; }
-    this.addFood = false; return false;
-  }
-  addBiscuit() {
-    if (this.setFoodStatus()) {
-      for (let i = this.grid.length - 1; i >= 0; i--) {
-        const f = this.grid[i];
-        f.foodUnit(f.location.x - (this.rows / 2), f.location.y - (this.cols / 2), this.unitW, this.unitH, true, 1);
-      }
-    }
-  }
-  addSugar() {
-    if (this.setFoodStatus()) {
-      for (let i = this.grid.length - 1; i >= 0; i--) {
-        const f = this.grid[i];
-        f.foodUnit(f.location.x - (this.rows / 2), f.location.y - (this.cols / 2), this.unitW, this.unitH, true, 2);
-      }
-    }
-  }
-  addToxic() {
-    if (this.setFoodStatus()) {
-      for (let i = this.grid.length - 1; i >= 0; i--) {
-        const f = this.grid[i];
-        f.foodUnit(f.location.x - (this.rows / 2), f.location.y - (this.cols / 2), this.unitW, this.unitH, true, 3);
-      }
-    }
-  }
-  addFoodIcon(x, y, size, selected, type) {
-    const icon = [];
-    for (let i = 0; i < this.rows; i += this.unitW) {
-      for (let j = 0; j < this.cols; j += this.unitH) {
-        icon.push(new Food(createVector(i + x, j + y)));
-      }
-    }
-    for (let i = icon.length - 1; i >= 0; i--) {
-      const f = icon[i];
-      f.foodUnit(f.location.x - (this.rows / 2), f.location.y - (this.cols / 2), size, size, selected, type);
-    }
-  }
-  setSelected(selected) { return !!selected; }
-  hasParticle() { return this.hasParticleFlag; }
-  eatFood(l) {
-    for (let i = this.grid.length - this.counter; i >= 0; i--) {
-      if (this.counter > 0) {
-        const f = this.grid[i];
-        if (this.counter >= 1) {
-          this.counter--;
-          if (l.x >= f.location.x - (this.unitSize - this.unitW) && l.y >= f.location.y - (this.unitSize - this.unitH)) {
-            this.grid.splice(this.counter, 1);
-            this.hasParticleFlag = true;
-          }
-        }
-      }
-    }
+  // Faint pile that follows the mouse while a food tool is selected.
+  static drawPreview(type, x, y) {
+    if (!FoodSource.previewUnits) FoodSource.previewUnits = layout();
+    FoodSource.draw(FOOD_TYPES[type], x, y, FoodSource.previewUnits, 120);
   }
 }
-
