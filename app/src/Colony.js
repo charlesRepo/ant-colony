@@ -6,10 +6,11 @@ import { TRAIL } from './Pheromones.js';
 const SWARM_SIZE = 5;          // defenders on the antlion that make it retreat
 const SWARM_HIDE_FRAMES = 420;
 const SPACING = 9;             // closest two ants fighting the antlion may stand
-// Hatching: with an empty nest a new ant hatches every 4-14 s, at random. Food brought home goes
-// into a reserve (sugar counts double); the bigger the reserve, the more often ants hatch and the
-// more hatch at once. Newborns eat from the reserve, so the boom fades once food stops coming in.
-const BIRTH_FRAMES = [240, 840];
+// Hatching: with an empty nest a new ant hatches every 3-9 s, at random, which holds an unfed colony
+// near its starting size. Food brought home goes into a reserve (sugar counts double); the bigger
+// the reserve, the more often ants hatch and the more hatch at once. Newborns eat from the reserve,
+// so the boom fades once food stops coming in.
+const BIRTH_FRAMES = [180, 540];
 const RESERVE_PER_SPEEDUP = 8;  // each 8 units in reserve adds the base hatching rate again...
 const MAX_SPEEDUP = 6;          // ...up to 6x as often
 const RESERVE_PER_EXTRA = 10;   // each 10 units in reserve adds one more ant per hatching...
@@ -75,6 +76,8 @@ export class Colony {
     }
     if (predator.isOnField) this.spaceOut(world);
     if (predator.isHunting) this.feed(predator, world.field);
+    // Bodies that have crumbled away are gone.
+    if (this.ants.some(a => a.crumbled)) this.ants = this.ants.filter(a => !a.crumbled);
   }
   // Ants fighting the antlion crowd around it; push apart any that overlap, then put them back
   // outside its body and inside the field.
@@ -133,8 +136,10 @@ export class Colony {
     if (defenders >= SWARM_SIZE) predator.retreat(SWARM_HIDE_FRAMES);
   }
   // Bodies never move, so once settled each is drawn once into an offscreen layer instead of every
-  // frame; the layer is only redrawn when a body is eaten or the palette changes.
+  // frame; the layer is only redrawn when a body is eaten, starts crumbling, or the palette changes.
   displayGround(theme) {
+    // A body that starts crumbling leaves the layer and is drawn live while it fades.
+    for (const a of this.baked) if (a.crumbling) { this.baked.delete(a); this.corpsesDirty = true; }
     if (this.corpses && (this.corpsesTheme !== theme || this.corpsesDirty)) {
       this.corpses.clear();
       for (const a of this.baked) a.displayStain(this.corpses);
@@ -144,7 +149,7 @@ export class Colony {
     this.corpsesTheme = theme;
     for (const a of this.ants) {
       if (!a.isDead || this.baked.has(a)) continue;
-      if (a.deathAge < SETTLED_FRAMES) { a.displayStain(); continue; }
+      if (a.deathAge < SETTLED_FRAMES || a.crumbling) { a.displayStain(); continue; }
       if (!this.corpses) this.corpses = createGraphics(width, height);
       a.displayStain(this.corpses);
       a.display(theme, this.corpses);

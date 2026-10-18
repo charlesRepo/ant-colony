@@ -12,14 +12,16 @@ const POISON_TINT = [92, 108, 36];
 const CALLOW_TINT = [172, 120, 72];  // newly hatched ants are pale and darken as they mature
 const CALLOW_FRAMES = 900;
 const EMERGE_FRAMES = 40;           // a newborn grows to full size as it climbs out of the nest
-const LIFESPAN = 3600;              // an ant lives 1 minute (at 60 fps)...
-const LIFESPAN_SPREAD = 1200;       // ...plus up to 20 s more, so ants that appeared together don't all die together
+const LIFESPAN = 10800;             // an ant lives 3 minutes (at 60 fps)...
+const LIFESPAN_SPREAD = 3600;       // ...plus up to 1 more, so ants that appeared together don't all die together
 const OLD_AGE_FADE = 300;           // then slows to a stop over 5 s and dies
 const AGED_TINT = [104, 92, 80];    // old ants grey a little
 const STAIN = [44, 50, 14];
 const CRUSH_STAIN = [62, 32, 16];
 const CRUSH_TINT = [26, 14, 6];
 const STARTLE_FRAMES = 45;   // how long an ant bolts after a foot comes down nearby
+const BODY_FRAMES = 1800;    // a body lies there for 30 s...
+const CRUMBLE_FRAMES = 240;  // ...then crumbles away over 4 s
 const WARNED = 1.5;          // toxic-trail strength that warns an ant off toxic food
 const WARY_FRAMES = 600;     // how long a warned ant keeps ignoring toxic piles
 const GOAL_FRAMES = 150;     // how long an ant stays set on sugar after losing its scent
@@ -69,6 +71,10 @@ export class Ant {
     this.stain = null;
   }
   get isDead() { return this.state === ANT.DEAD; }
+  // How far a body has crumbled: 0 intact, 1 gone.
+  get decay() { return this.isDead ? constrain((this.deathAge - BODY_FRAMES) / CRUMBLE_FRAMES, 0, 1) : 0; }
+  get crumbling() { return this.isDead && this.deathAge >= BODY_FRAMES; }
+  get crumbled() { return this.decay >= 1; }
   get canFight() { return this.state === ANT.SEARCHING || this.state === ANT.CARRYING; }
 
   applyForce(force, weight = 1) { if (force) this.acceleration.add(force.mult(weight)); }
@@ -359,6 +365,8 @@ export class Ant {
     } else if (cause === 'crushed') {
       this.stain = [{ x: 0, y: 0, r: 12 }, ...Array.from({ length: 3 }, () => ({ x: random(-4, 4), y: random(-4, 4), r: random(6, 11) }))];
     }
+    // Specks the body breaks into when it crumbles.
+    this.dust = Array.from({ length: 8 }, () => ({ x: random(-6, 5), y: random(-3, 3), dx: random(-1, 1), dy: random(-1, 1), r: random(0.8, 1.7) }));
   }
 
   // `pg` is where to draw: the main canvas by default, or an offscreen layer.
@@ -369,7 +377,7 @@ export class Ant {
     const c = crushed ? CRUSH_STAIN : STAIN;
     pg.noStroke();
     // Each blob is a few stacked discs, which gives it a soft, soaked-in edge.
-    pg.fill(c[0], c[1], c[2], crushed ? 22 : 14);
+    pg.fill(c[0], c[1], c[2], (crushed ? 22 : 14) * (1 - this.decay));
     for (const s of this.stain) {
       for (let k = 1; k >= 0.4; k -= 0.2) pg.circle(this.location.x + s.x * grow, this.location.y + s.y * grow, s.r * grow * k);
     }
@@ -394,7 +402,10 @@ export class Ant {
     pg.translate(this.location.x, this.location.y);
     pg.rotate(this.heading);
     if (this.newborn && this.age < EMERGE_FRAMES) pg.scale(lerp(0.4, 1, this.age / EMERGE_FRAMES));
-    pg.stroke(r, g, b);
+    // A crumbling body fades and shrinks as it breaks into dust.
+    const decay = this.decay, alpha = 255 * (1 - decay);
+    if (decay > 0) pg.scale(lerp(1, 0.7, decay));
+    pg.stroke(r, g, b, alpha);
     pg.strokeWeight(0.7);
     const swing = dead ? 0 : Math.min(1, this.velocity.mag() / 1.5) * 1.3;
     for (let side = -1; side <= 1; side += 2) {
@@ -419,13 +430,18 @@ export class Ant {
       pg.line(8.6, side * (2.6 + tw), 10.4, side * (2.1 + tw));
     }
     pg.noStroke();
-    pg.fill(r, g, b);
+    if (decay > 0) {
+      pg.noStroke();
+      pg.fill(lerp(r, 150, 0.5), lerp(g, 120, 0.5), lerp(b, 90, 0.5), 200 * (1 - decay));
+      for (const d of this.dust) pg.circle(d.x + d.dx * decay * 8, d.y + d.dy * decay * 8, d.r);
+    }
+    pg.fill(r, g, b, alpha);
     if (crushed) pg.scale(0.95, 1.4);
     pg.ellipse(-4.4, 0, 6.8, 4.8);   // gaster
     pg.ellipse(-0.6, 0, 1.8, 1.4);   // petiole
     pg.ellipse(1.6, 0, 4.2, 2.6);    // thorax
     pg.ellipse(5.1, 0, 3.8, 3.6);    // head
-    pg.fill(255, 255, 255, 34);
+    pg.fill(255, 255, 255, 34 * (1 - decay));
     pg.ellipse(-5, -1, 2.6, 1.3);
     pg.ellipse(5.4, -0.7, 1.6, 1);
     if (this.carrying) {

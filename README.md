@@ -60,13 +60,13 @@ Times below assume 60 frames per second. The simulation counts frames, so on a s
 
 - The colony starts with **30 ants** at the nest, and there is no food until you place some.
 - At most **100 ants can be alive** at once. Dead ants don't count.
-- **New ants hatch on their own**, so the colony recovers even if every ant is lost. With an empty nest, one ant hatches every 4–14 seconds, at random.
+- **New ants hatch on their own**, so the colony recovers even if every ant is lost. With an empty nest, one ant hatches every 3–9 seconds, at random. That's enough to hold an unfed colony at about 30–40 ants.
 - **Food speeds up hatching.** Every piece brought home goes into the nest's reserve: sugar adds 2, biscuit adds 1, up to 60.
   - Every 8 in reserve adds the base hatching rate again, up to 6× as often.
   - Every 10 in reserve adds one more ant per hatching, up to 5 at once.
   - Each newborn eats 1.5 from the reserve, so a boom fades once food stops coming in.
 - Newborns climb out of the nest pale and darken over about 15 seconds. They start foraging straight away.
-- **Old age:** an ant lives 1 minute plus a random 0–20 seconds. When its time is up it drops whatever it carries, slows to a stop over 5 seconds and dies. The starting colony has ants of mixed ages, so they don't all die at once.
+- **Old age:** an ant lives 3 minutes plus a random 0–1 minute. When its time is up it drops whatever it carries, slows to a stop over 5 seconds and dies. The starting colony has ants of mixed ages, so they don't all die at once.
 
 ### Foraging and food
 
@@ -132,7 +132,7 @@ Every ant lays a trail along the centre of its path. Which trail it lays depends
 
 ### Bodies
 
-- Ants that die of poison, old age or being stepped on stay where they fell. Only the antlion removes them, by eating them.
+- Ants that die of poison, old age or being stepped on stay where they fell for 30 seconds. Then the body, and any stain, crumbles away over 4 seconds. The antlion may eat a body before then.
 - Each kind of death looks different:
   - Poisoned: a spreading green stain.
   - Old age: curled up and slightly greyed.
