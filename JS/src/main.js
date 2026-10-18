@@ -9,8 +9,10 @@ import { Colony } from './Colony.js';
 import { Predator } from './Predator.js';
 import { FoodSource, FOOD_TYPES } from './Food.js';
 import { ControlPanel } from './ControlPanel.js';
+import { Human } from './Human.js';
 
 let land, field, nest, lair, colony, predator, panel, theme, bounds;
+const human = new Human();
 let foods = [];
 let hovering = false;
 
@@ -18,7 +20,7 @@ let hovering = false;
 window.setup = function () {
   const c = createCanvas(WORLD.width, WORLD.height);
   c.parent('stage');
-  c.mousePressed(placeFood);
+  c.mousePressed(handleClick);
   c.mouseOver(() => { hovering = true; });
   c.mouseOut(() => { hovering = false; });
   bounds = { left: 0, top: 0, right: width, bottom: height };
@@ -46,15 +48,20 @@ function setTheme(name) {
 function reset() {
   field.clear();
   foods = [];
+  if (colony) colony.dispose();
   colony = new Colony(nest);
   colony.spawn(START_ANTS);
   predator = new Predator(lair);
   panel.setPredator(false);
 }
 
+function handleClick() {
+  if (panel.tool === 'human') human.stomp(mouseX, mouseY, colony, field);
+  else if (panel.tool) placeFood();
+}
+
 // Drop a pile of the selected food where the ground was clicked, clear of the edges and the holes.
 function placeFood() {
-  if (!panel.tool) return;
   const p = createVector(mouseX, mouseY);
   for (const home of [nest, lair]) {
     const away = p5.Vector.sub(p, home.origin);
@@ -69,16 +76,24 @@ window.draw = function () {
   colony.run({ bounds, nest, lair, foods, field, predator });
   foods = foods.filter(f => !f.isEmpty);
   field.update();
+  human.update();
 
   land.display();
   field.display();
-  colony.displayStains();
+  colony.displayGround(theme);
   for (const f of foods) f.display();
   colony.display(theme);
   predator.display();
   colony.displayDefenders(theme);
-  if (panel.tool && hovering) FoodSource.drawPreview(panel.tool, mouseX, mouseY);
+  human.display();
+  if (panel.tool && hovering) {
+    if (panel.tool === 'human') human.displayCursor(mouseX, mouseY);
+    else FoodSource.drawPreview(panel.tool, mouseX, mouseY);
+  }
 
   const piles = Object.fromEntries(Object.keys(FOOD_TYPES).map(type => [type, foods.filter(f => f.type === type).length]));
-  panel.render({ alive: colony.alive, stats: colony.stats, piles, predatorStatus: predator.status });
+  panel.render({
+    alive: colony.alive, stats: colony.stats, piles, hatch: colony.hatchRate,
+    predatorStatus: predator.status, humanStatus: human.status(panel.tool === 'human'),
+  });
 };

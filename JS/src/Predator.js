@@ -13,6 +13,9 @@ const SCALE = 1.15;
 const BODY_REACH = [40, 24]; // half-length and half-width of the zone ants keep out of (jaws and legs included)
 const CHASE_LIMIT = 600;   // frames spent on one ant before giving up on it
 const IGNORE_FRAMES = 300;
+const MEAL_LIMIT = 10;      // eating more than this many ants...
+const MEAL_WINDOW = 3600;   // ...within a minute fills it up...
+const REST_FRAMES = 1800;   // ...and it goes home to rest for 30 s
 
 // Abdomen outline (local coordinates, +x is forward), smoothed through Catmull-Rom.
 const ABDOMEN_KEYS = [[1, 0], [-1, 6.5], [-6, 10.5], [-12, 11.5], [-18, 9], [-23, 4.5], [-26, 0],
@@ -59,6 +62,8 @@ export class Predator {
     this.chaseTime = 0;
     this.ignored = null;     // an ant it recently gave up on
     this.ignoreTimer = 0;
+    this.meals = [];         // frameCount of each recent meal
+    this.full = false;       // resting off a big meal
     this.jaw = 0.4;
     this.jawTarget = 0.4;
     this.gait = 0;
@@ -108,15 +113,15 @@ export class Predator {
   get status() {
     if (!this.enabled) return this.isOnField ? 'Heading back to its pit' : 'Asleep in its pit';
     switch (this.state) {
-      case PREDATOR.HIDDEN: return 'Hiding after the colony fought back';
+      case PREDATOR.HIDDEN: return this.full ? 'Full, resting in its pit' : 'Hiding after a fight';
       case PREDATOR.EMERGING: return 'Climbing out of its pit';
-      case PREDATOR.RETREATING: return 'Driven back by the colony';
+      case PREDATOR.RETREATING: return this.full ? 'Full, going home to rest' : 'Driven back by ants';
       default: return this.prey ? 'Chasing an ant' : 'Prowling for ants';
     }
   }
   setEnabled(on) {
     this.enabled = on;
-    if (on && this.state === PREDATOR.HIDDEN) this.hideTimer = 0;
+    if (on && this.state === PREDATOR.HIDDEN && !this.full) this.hideTimer = 0;
     if (!on && this.isOnField) this.retreat(0);
   }
   retreat(hideFrames) {
@@ -124,7 +129,16 @@ export class Predator {
     this.hideTimer = hideFrames;
     this.prey = null;
   }
-  ate() { this.chew = 40; }
+  ate() {
+    this.chew = 40;
+    this.meals = this.meals.filter(t => frameCount - t < MEAL_WINDOW);
+    this.meals.push(frameCount);
+    if (this.meals.length > MEAL_LIMIT) {
+      this.full = true;
+      this.meals = [];
+      this.retreat(REST_FRAMES);
+    }
+  }
 
   applyForce(force, weight = 1) { if (force) this.acceleration.add(force.mult(weight)); }
   steerTo(desired) { return p5.Vector.sub(desired, this.velocity).limit(this.maxForce); }
@@ -155,6 +169,7 @@ export class Predator {
     switch (this.state) {
       case PREDATOR.HIDDEN:
         if (this.enabled && --this.hideTimer <= 0) {
+          this.full = false;
           // Climb out the way its jaws were already pointing.
           this.state = PREDATOR.EMERGING;
           this.location.set(lair.origin);

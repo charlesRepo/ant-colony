@@ -10,7 +10,7 @@
     <div class="app">
       <main class="stage">
         <div id="stage" class="stage__field"></div>
-        <p class="stage__hint" id="place-hint" hidden>Click the ground to drop <strong id="place-hint-food">sugar</strong> &middot; <kbd>Esc</kbd> to stop</p>
+        <p class="stage__hint" id="place-hint" role="status"><span id="place-hint-text">Click the ground to drop <strong>sugar</strong></span> &middot; <kbd>Esc</kbd> to stop</p>
       </main>
 
       <aside class="panel" aria-label="Simulation controls">
@@ -24,7 +24,7 @@
             <h2 class="group__title" id="colony-title">Colony</h2>
             <div class="census">
               <span class="census__count" id="ant-count">0</span>
-              <span class="census__label">ants alive<span class="census__max">of 100 max</span></span>
+              <span class="census__label">ants alive<span class="census__max" id="hatch-rate" title="New ants hatch more often, and more at a time, the more food the colony has brought home">of 100 max</span></span>
             </div>
             <div class="meter" aria-hidden="true"><span class="meter__fill" id="ant-meter"></span></div>
             <div class="btn-row">
@@ -34,14 +34,15 @@
             <dl class="stats">
               <div title="Food brought back to the nest"><dt>Stored</dt><dd id="stat-stored">0</dd></div>
               <div title="Ants hatched in the nest"><dt>Born</dt><dd id="stat-born">0</dd></div>
-              <div><dt>Poisoned</dt><dd id="stat-poisoned">0</dd></div>
-              <div><dt>Eaten</dt><dd id="stat-eaten">0</dd></div>
+              <div title="Ants that died of old age (after 5 minutes or more)"><dt>Old age</dt><dd id="stat-aged">0</dd></div>
+              <div title="Ants poisoned by toxic food"><dt>Toxic</dt><dd id="stat-poisoned">0</dd></div>
+              <div title="Ants eaten by the antlion"><dt>Eaten</dt><dd id="stat-eaten">0</dd></div>
+              <div title="Ants stepped on by the human"><dt>Crushed</dt><dd id="stat-crushed">0</dd></div>
             </dl>
           </section>
 
           <section class="group" aria-labelledby="food-title">
             <h2 class="group__title" id="food-title">Food</h2>
-            <p class="group__note">Pick one, then click the ground.</p>
             <div class="tools" role="group" aria-label="Food to place">
               <button class="tool" type="button" data-tool="biscuit" aria-pressed="false">
                 <svg class="tool__icon" viewBox="0 0 30 30" aria-hidden="true">
@@ -81,7 +82,8 @@
           </section>
 
           <section class="group" aria-labelledby="predator-title">
-            <h2 class="group__title" id="predator-title">Predator</h2>
+            <h2 class="group__title" id="predator-title">Predators</h2>
+            <div class="predators">
             <label class="predator">
               <svg class="predator__icon" viewBox="0 0 40 40" aria-hidden="true">
                 <path d="M17 17 11 13 8 9M23 17 29 13 32 9M16.5 20 10 21 7 24M23.5 20 30 21 33 24M17 23 12 28 10 33M23 23 28 28 30 33" stroke="#c09e6c" stroke-width="1.6" stroke-linecap="round" fill="none"/>
@@ -96,6 +98,19 @@
               </span>
               <input class="switch" type="checkbox" role="switch" id="predator-toggle" aria-label="Release the antlion" />
             </label>
+            <label class="predator">
+              <svg class="predator__icon" viewBox="0 0 40 40" aria-hidden="true">
+                <path d="M20 3c5.5 0 8 4.5 8 10.5 0 4.5-1.6 8-2.6 10.5H14.6C13.6 21.5 12 18 12 13.5 12 7.5 14.5 3 20 3z" fill="#b5a084"/>
+                <path d="M15 27h10c.8 3 .8 6.5-.6 8.5-1.2 1.6-3 2.3-4.4 2.3s-3.2-.7-4.4-2.3C14.2 33.5 14.2 30 15 27z" fill="#b5a084"/>
+                <path d="M15.5 8h9M14 12h12M14 16h12M15 20h10M16.5 30.5h7M16.5 34h7" stroke="#6b5a46" stroke-width="1.2" opacity=".7"/>
+              </svg>
+              <span class="predator__text">
+                <span class="predator__name">Human</span>
+                <span class="predator__status" id="human-status">Off</span>
+              </span>
+              <input class="switch" type="checkbox" role="switch" id="human-toggle" aria-label="Step on ants by clicking them" />
+            </label>
+            </div>
           </section>
 
           <section class="group" aria-labelledby="trails-title">
@@ -104,7 +119,8 @@
               <li title="Laid by ants out searching; leads back to the nest"><span class="legend__swatch" data-trail="home"></span>Home</li>
               <li title="Laid by ants carrying biscuit; leads to biscuit"><span class="legend__swatch" data-trail="biscuit"></span>Biscuit</li>
               <li title="Laid by ants carrying sugar; ants prefer it over biscuit"><span class="legend__swatch" data-trail="sugar"></span>Sugar</li>
-              <li title="Laid by poisoned ants; others steer clear"><span class="legend__swatch" data-trail="toxic"></span>Warning</li>
+              <li title="Laid by poisoned ants; others steer clear"><span class="legend__swatch" data-trail="toxic"></span>Toxic</li>
+              <li title="Laid by ants the antlion is attacking; others follow it and fight back"><span class="legend__swatch" data-trail="alarm"></span>Danger</li>
             </ul>
           </section>
 

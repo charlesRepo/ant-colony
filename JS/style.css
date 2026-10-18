@@ -85,7 +85,9 @@ html, body {
   backdrop-filter: blur(4px);
 }
 .stage__hint strong { color: var(--accent); }
-.stage__hint[hidden] { display: none; }
+/* Fades out on its own after a few seconds (see ControlPanel.selectTool). */
+.stage__hint { opacity: 0; visibility: hidden; transition: opacity 0.4s, visibility 0s 0.4s; }
+.stage__hint.is-visible { opacity: 1; visibility: visible; transition: opacity 0.2s; }
 
 /* Panel -------------------------------------------------------------------- */
 .panel {
@@ -104,7 +106,7 @@ html, body {
   flex-direction: column;
 }
 
-.panel__head { padding: 16px 20px 14px; }
+.panel__head { padding: 14px 20px 12px; }
 .panel__title {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -116,42 +118,43 @@ html, body {
 
 .group { padding: 12px 20px 13px; border-top: 1px solid var(--line); }
 .group__title {
-  margin: 0 0 9px;
+  margin: 0 0 6px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.group__note { margin: -4px 0 10px; color: var(--muted); font-size: 12px; }
 
 /* Colony */
-.census { display: flex; align-items: baseline; gap: 10px; }
+.census { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .census__count {
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  font-size: 36px;
+  font-size: 34px;
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.census__label { display: flex; flex-direction: column; font-weight: 600; line-height: 1.25; }
-.census__max { color: var(--muted); font-size: 12px; font-weight: 400; }
+.census__label { display: flex; flex-direction: column; min-width: 0; font-weight: 600; line-height: 1.25; }
+.census__max { overflow: hidden; color: var(--muted); font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 
-.meter { height: 4px; margin: 10px 0 12px; background: var(--surface-2); }
+.meter { height: 4px; margin: 8px 0 8px; background: var(--surface-2); }
 .meter__fill { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.25s ease; }
 
 .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: 12px 0 0;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 10px 0 0;
   border: 1px solid var(--line);
 }
-.stats div { padding: 6px 8px; }
-.stats div + div { border-left: 1px solid var(--line); }
-.stats dt { color: var(--muted); font-size: 11px; }
-.stats dd { margin: 0; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Two rows of three; each cell is "label  value" on one line. */
+.stats div { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; min-width: 0; padding: 4px 8px; }
+.stats div:not(:nth-child(3n + 1)) { border-left: 1px solid var(--line); }
+.stats div:nth-child(n + 4) { border-top: 1px solid var(--line); }
+.stats dt { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.stats dd { margin: 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* Buttons */
 .btn {
@@ -217,11 +220,13 @@ kbd {
 .tool__meta { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
 
 /* Predator */
+.predators { display: grid; gap: 8px; }
 .predator { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.predator__icon { flex: none; width: 40px; height: 40px; }
+.predator__icon { flex: none; width: 34px; height: 34px; }
 .predator__text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
 .predator__name { font-weight: 600; }
-.predator__status { color: var(--muted); font-size: 12px; }
+/* Status and hatch-rate lines change while running; keep them to one line so the panel never shifts. */
+.predator__status { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 
 .switch {
   appearance: none;
@@ -251,8 +256,8 @@ kbd {
 .switch:checked::after { transform: translateX(18px); background: var(--accent-ink); }
 
 /* Trail legend */
-.legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.legend li { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; cursor: help; }
+.legend { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.legend li { display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; font-weight: 600; cursor: help; }
 .legend__swatch {
   position: relative;
   height: 16px;
@@ -293,7 +298,7 @@ kbd {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding: 12px 20px;
+  padding: 10px 20px;
   border-top: 1px solid var(--line);
 }
 .panel__foot .btn { padding: 6px 14px; }

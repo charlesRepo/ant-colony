@@ -2,13 +2,14 @@
 // blob, ants can sample the strength around them cheaply, and the whole field is drawn as one
 // translucent image under the ants.
 // Each food kind has its own trail so ants can tell where a trail leads (see Ant.step).
-export const TRAIL = { HOME: 0, BISCUIT: 1, SUGAR: 2, TOXIC: 3 };
+export const TRAIL = { HOME: 0, BISCUIT: 1, SUGAR: 2, TOXIC: 3, ALARM: 4 };
 
 // Per-frame decay is picked per cell from a patchy noise field, so a trail breaks up into fading
 // dashes instead of dimming evenly. Fresh trails hold full opacity for a moment, and opacity then
 // follows sqrt(strength), which keeps faint remnants visible for a while before they vanish.
 // Home trails are laid by every searching ant, so they fade sooner than food and warning trails.
-const DECAY = [[0.995, 0.998], [0.9958, 0.9988], [0.9958, 0.9988], [0.9958, 0.9988]]; // [fast, slow] per layer
+// The danger (alarm) trail is volatile and clears within seconds.
+const DECAY = [[0.995, 0.998], [0.9958, 0.9988], [0.9958, 0.9988], [0.9958, 0.9988], [0.985, 0.992]]; // [fast, slow] per layer
 const HOLD = 1.6;
 const CUTOFF = 0.006;
 
@@ -25,7 +26,7 @@ export class PheromoneField {
     this.colors = [];
   }
   setColors(trails) {
-    this.colors = [trails.home, trails.biscuit, trails.sugar, trails.toxic].map(([r, g, b, a]) => ({ r, g, b, a }));
+    this.colors = [trails.home, trails.biscuit, trails.sugar, trails.toxic, trails.alarm].map(([r, g, b, a]) => ({ r, g, b, a }));
   }
   clear() {
     for (const l of this.layers) { l.strength.fill(0); l.decay.fill(0); }
@@ -46,6 +47,15 @@ export class PheromoneField {
       const i = r * this.cols + c, v = amount * Math.min(1, w * 1.5);
       if (v > l.strength[i]) l.strength[i] = v;
       l.decay[i] = lerp(fast, slow, constrain(patch + (Math.random() - 0.5) * 0.3, 0, 1));
+    }
+  }
+  // A soft round patch, strongest in the middle.
+  depositDisc(layer, x, y, radius, amount) {
+    for (let dy = -radius; dy <= radius; dy += this.cell) {
+      for (let dx = -radius; dx <= radius; dx += this.cell) {
+        const d = Math.hypot(dx, dy);
+        if (d <= radius) this.deposit(layer, x + dx, y + dy, amount * (1 - d / (radius + this.cell)));
+      }
     }
   }
   // Lay a continuous line between two positions so fast ants don't leave dotted trails.
@@ -72,11 +82,11 @@ export class PheromoneField {
   update() {
     const px = this.buffer.pixels;
     const strength = this.layers.map(l => l.strength), decay = this.layers.map(l => l.decay);
-    const [s0, s1, s2, s3] = strength;
+    const [s0, s1, s2, s3, s4] = strength;
     const n = this.cols * this.rows;
     for (let i = 0; i < n; i++) {
       const p = i << 2;
-      if (s0[i] === 0 && s1[i] === 0 && s2[i] === 0 && s3[i] === 0) { if (px[p + 3] !== 0) px[p + 3] = 0; continue; }
+      if (s0[i] === 0 && s1[i] === 0 && s2[i] === 0 && s3[i] === 0 && s4[i] === 0) { if (px[p + 3] !== 0) px[p + 3] = 0; continue; }
       let A = 0, R = 0, G = 0, B = 0;
       for (let l = 0; l < strength.length; l++) {
         let s = strength[l][i];

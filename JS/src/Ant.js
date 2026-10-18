@@ -1,7 +1,7 @@
 import { TRAIL } from './Pheromones.js';
 import { FOOD_TYPES } from './Food.js';
 
-export const ANT = { SEARCHING: 'searching', CARRYING: 'carrying', POISONED: 'poisoned', DEAD: 'dead' };
+export const ANT = { SEARCHING: 'searching', CARRYING: 'carrying', POISONED: 'poisoned', OLD: 'old', DEAD: 'dead' };
 
 const SENSOR_ANGLE = 0.55;   // left / right antenna sensors, in radians from the heading
 const SENSOR_DIST = 14;
@@ -12,11 +12,20 @@ const POISON_TINT = [92, 108, 36];
 const CALLOW_TINT = [172, 120, 72];  // newly hatched ants are pale and darken as they mature
 const CALLOW_FRAMES = 900;
 const EMERGE_FRAMES = 40;           // a newborn grows to full size as it climbs out of the nest
+const LIFESPAN = 18000;             // an ant lives 5 minutes (at 60 fps)...
+const LIFESPAN_SPREAD = 3600;       // ...plus up to 1 more, so ants that appeared together don't all die together
+const OLD_AGE_FADE = 300;           // then slows to a stop over 5 s and dies
+const AGED_TINT = [104, 92, 80];    // old ants grey a little
 const STAIN = [44, 50, 14];
+const CRUSH_STAIN = [62, 32, 16];
+const CRUSH_TINT = [26, 14, 6];
+const STARTLE_FRAMES = 45;   // how long an ant bolts after a foot comes down nearby
 const WARNED = 1.5;          // toxic-trail strength that warns an ant off toxic food
 const WARY_FRAMES = 600;     // how long a warned ant keeps ignoring toxic piles
 const GOAL_FRAMES = 150;     // how long an ant stays set on sugar after losing its scent
 const SUGAR = FOOD_TYPES.sugar.value;
+const ALARM_SMELL = 0.6;     // danger-trail strength (summed around the ant) that alarms it
+const ALARM_FRAMES = 300;    // how long an alarmed ant stays ready to fight
 const KNEE = [1.6, 0.2, -1.6];
 const FOOT = [4.2, 0.6, -4.2];
 
@@ -33,6 +42,7 @@ export class Ant {
     this.radius = 7;
     this.state = ANT.SEARCHING;
     this.carrying = null;     // FOOD_TYPES key while bringing food home
+    this.delivered = null;    // what it last brought home
     this.trailStrength = 1;   // fades with time since leaving the nest / the food
     this.poisonAge = 0;
     this.vitality = 1;        // 1 = healthy, drains to 0 after eating toxic food
@@ -41,10 +51,18 @@ export class Ant {
     this.goalTimer = 0;
     this.defending = false;
     this.fleeing = false;
+    this.alarmed = 0;         // frames left answering a danger trail
+    this.startled = 0;        // frames left bolting from a stomp at `startleFrom`
+    this.startleFrom = null;
+    this.danger = 0;          // how hard it is being chased (0..1); sets the danger trail it lays
     this.face = null;         // angle to turn toward instead of the direction of travel
     this.lunge = random(TWO_PI);
     this.gait = random(TWO_PI);
-    this.age = newborn ? 0 : CALLOW_FRAMES;
+    this.newborn = newborn;
+    this.age = 0;             // frames alive
+    this.lifespan = LIFESPAN + random(LIFESPAN_SPREAD);
+    this.oldAge = 0;          // frames spent dying of old age
+    this.cause = null;        // 'poison' or 'old' once dead
     this.deathAge = 0;
     this.stain = null;
   }
@@ -151,15 +169,23 @@ export class Ant {
     return push.magSq() > 0 ? this.steerTo(push.setMag(2.4)) : null;
   }
   // Ants band together against the antlion when there are enough of them; a defender that finds
-  // itself without support loses its nerve. Defenders close in but hold station just outside the
-  // antlion's body, facing it and darting in and out, so they are never underneath it.
-  reactToPredator(predator, crowd, bounds, defenders) {
+  // itself without support loses its nerve. An ant the antlion is chasing lays a danger trail;
+  // ants that smell it follow it back and join the fight with just one nestmate beside them.
+  // Defenders close in but hold station just outside the antlion's body, facing it and darting in
+  // and out, so they are never underneath it.
+  reactToPredator(predator, crowd, bounds, defenders, field) {
+    const wasFleeing = this.fleeing;
     this.fleeing = false;
+    this.danger = 0;
     this.face = null;
-    if (!predator.isOnField || !this.canFight) { this.defending = false; return; }
+    if (!predator.isOnField || !this.canFight) { this.defending = false; this.alarmed = 0; return; }
+    if (this.alarmed > 0) this.alarmed--;
+    if (!wasFleeing && field.sample(TRAIL.ALARM, this.location.x, this.location.y, 3) > ALARM_SMELL) this.alarmed = ALARM_FRAMES;
     const d = this.location.dist(predator.location);
-    if (this.defending) { if (d > 230 || crowd < 2) this.defending = false; }
+    const alarmed = this.alarmed > 0;
+    if (this.defending) { if (d > 230 || crowd < (alarmed ? 1 : 2)) this.defending = false; }
     else if (d < 170 && crowd >= 4) this.defending = true;
+    else if (alarmed && d < 140 && crowd >= 1) this.defending = true;
     if (this.defending) {
       const reach = 1.08 + 0.14 * (0.5 + 0.5 * Math.sin(frameCount * 0.16 + this.lunge));
       this.applyForce(this.arrive(predator.stationFor(this.location, reach), 14, 2.4), 2.5);
@@ -167,8 +193,17 @@ export class Ant {
       this.face = Math.atan2(predator.location.y - this.location.y, predator.location.x - this.location.x);
     } else if (d < 95) {
       this.fleeing = true;
+      if (predator.isHunting) this.danger = map(d, 25, 95, 1, 0.4, true);
       this.applyForce(this.escape(predator.location, bounds, 1.9), 2.2);
+    } else if (alarmed) {
+      const toPredator = Math.atan2(predator.location.y - this.location.y, predator.location.x - this.location.x);
+      this.applyForce(this.followTrail(field, TRAIL.ALARM, toPredator, 0.6), 2);
     }
+  }
+  startle(x, y) {
+    if (!this.canFight) return;
+    this.startled = STARTLE_FRAMES;
+    this.startleFrom = createVector(x, y);
   }
   turnAround() {
     this.velocity.mult(-1);
@@ -176,18 +211,29 @@ export class Ant {
     this.wandertheta = 0;
   }
 
-  // One simulation step. Returns 'delivered', 'poisoned', 'died' or null.
+  // One simulation step. Returns 'delivered', 'poisoned', 'died', 'aged' or null.
   step(world, crowd) {
     if (this.isDead) { this.deathAge++; return null; }
     this.age++;
     const { field, nest, lair, foods, predator, bounds, defenders } = world;
     let event = null;
+    // Past its lifespan an ant drops whatever it carries, slows to a stop and dies of old age
+    // (unless the poison gets it first).
+    if (this.age > this.lifespan && this.state !== ANT.POISONED && this.state !== ANT.OLD) {
+      this.state = ANT.OLD;
+      this.carrying = null;
+    }
 
-    if (this.state === ANT.POISONED) {
+    if (this.state === ANT.OLD) {
+      this.oldAge++;
+      this.vitality = 0.5 + 0.5 * Math.cos(PI * Math.min(1, this.oldAge / OLD_AGE_FADE));
+      if (this.oldAge >= OLD_AGE_FADE) { this.die('old'); return 'aged'; }
+      this.applyForce(this.wander(0.01));
+    } else if (this.state === ANT.POISONED) {
       this.poisonAge++;
       const t = constrain((this.poisonAge - POISON_GRACE) / POISON_FADE, 0, 1);
       this.vitality = 0.5 + 0.5 * Math.cos(PI * t);
-      if (t >= 1) { this.die(); return 'died'; }
+      if (t >= 1) { this.die('poison'); return 'died'; }
       this.applyForce(this.wander(lerp(0.06, 0.015, this.vitality)));
       this.applyForce(this.seek(nest.origin), 0.25);
     } else if (this.state === ANT.CARRYING) {
@@ -202,6 +248,7 @@ export class Ant {
       }
       if (d < nest.radius) {
         event = 'delivered';
+        this.delivered = this.carrying;
         this.carrying = null;
         this.state = ANT.SEARCHING;
         this.trailStrength = 1;
@@ -244,7 +291,12 @@ export class Ant {
       if (nest.distanceTo(this.location) < nest.radius * 2) this.trailStrength = 1;
     }
 
-    this.reactToPredator(predator, crowd, bounds, defenders);
+    this.reactToPredator(predator, crowd, bounds, defenders, field);
+    if (this.startled > 0) {
+      this.startled--;
+      this.fleeing = true;
+      this.applyForce(this.escape(this.startleFrom, bounds, 2.2), 2.5);
+    }
     this.applyForce(this.avoidPit(lair), 2);
     this.applyForce(this.contain(bounds), 2);
     this.move();
@@ -283,83 +335,105 @@ export class Ant {
   // Searching ants mark the way home, ants carrying food mark the way to that kind of food, poisoned
   // ants leave a warning trail. The pheromone is laid along the centre line of the body.
   layTrail(field) {
+    if (this.state === ANT.OLD) return;
     const layer = this.state === ANT.SEARCHING ? TRAIL.HOME
       : this.state === ANT.CARRYING ? (this.carrying === 'sugar' ? TRAIL.SUGAR : TRAIL.BISCUIT)
       : TRAIL.TOXIC;
     const amount = this.state === ANT.POISONED ? 0.35 + 0.65 * this.vitality : 0.3 + 0.7 * this.trailStrength;
     field.depositLine(layer, this.previous, this.location, amount);
+    if (this.danger > 0) field.depositDisc(TRAIL.ALARM, this.location.x, this.location.y, 5, this.danger);
     this.trailStrength *= 0.9975;
   }
-  die() {
+  // Poisoned ants leave a spreading stain and crushed ants a small smear; ants that die of old age
+  // just lie where they stopped.
+  die(cause) {
     this.state = ANT.DEAD;
+    this.cause = cause;
     this.vitality = 0;
     this.velocity.mult(0);
     this.defending = false;
-    this.stain = [{ x: 0, y: 0, r: 18 }, ...Array.from({ length: 4 }, () => ({ x: random(-5, 5), y: random(-5, 5), r: random(10, 20) }))];
-  }
-
-  displayStain() {
-    const grow = 1 - Math.pow(1 - Math.min(1, this.deathAge / 150), 2);
-    noStroke();
-    // Each blob is a few stacked discs, which gives it a soft, soaked-in edge.
-    fill(STAIN[0], STAIN[1], STAIN[2], 14);
-    for (const s of this.stain) {
-      for (let k = 1; k >= 0.4; k -= 0.2) circle(this.location.x + s.x * grow, this.location.y + s.y * grow, s.r * grow * k);
+    if (cause === 'poison') {
+      this.stain = [{ x: 0, y: 0, r: 18 }, ...Array.from({ length: 4 }, () => ({ x: random(-5, 5), y: random(-5, 5), r: random(10, 20) }))];
+    } else if (cause === 'crushed') {
+      this.stain = [{ x: 0, y: 0, r: 12 }, ...Array.from({ length: 3 }, () => ({ x: random(-4, 4), y: random(-4, 4), r: random(6, 11) }))];
     }
   }
-  display(theme) {
+
+  // `pg` is where to draw: the main canvas by default, or an offscreen layer.
+  displayStain(pg = window) {
+    if (!this.stain) return;
+    const crushed = this.cause === 'crushed';
+    const grow = 1 - Math.pow(1 - Math.min(1, this.deathAge / (crushed ? 6 : 150)), 2);
+    const c = crushed ? CRUSH_STAIN : STAIN;
+    pg.noStroke();
+    // Each blob is a few stacked discs, which gives it a soft, soaked-in edge.
+    pg.fill(c[0], c[1], c[2], crushed ? 22 : 14);
+    for (const s of this.stain) {
+      for (let k = 1; k >= 0.4; k -= 0.2) pg.circle(this.location.x + s.x * grow, this.location.y + s.y * grow, s.r * grow * k);
+    }
+  }
+  display(theme, pg = window) {
     const dead = this.isDead;
     let [r, g, b] = theme.ant;
-    if (this.age < CALLOW_FRAMES) {
+    if (this.newborn && this.age < CALLOW_FRAMES) {
       const k = 1 - this.age / CALLOW_FRAMES;
       r = lerp(r, CALLOW_TINT[0], k); g = lerp(g, CALLOW_TINT[1], k); b = lerp(b, CALLOW_TINT[2], k);
     }
-    if (dead || this.state === ANT.POISONED) {
-      const k = dead ? 0.35 : (1 - this.vitality) * 0.35;
-      r = lerp(r, POISON_TINT[0], k); g = lerp(g, POISON_TINT[1], k); b = lerp(b, POISON_TINT[2], k);
+    const poisoned = this.state === ANT.POISONED || this.cause === 'poison';
+    const crushed = this.cause === 'crushed';
+    if (crushed) {
+      r = lerp(r, CRUSH_TINT[0], 0.4); g = lerp(g, CRUSH_TINT[1], 0.4); b = lerp(b, CRUSH_TINT[2], 0.4);
+    } else if (poisoned || this.state === ANT.OLD || this.cause === 'old') {
+      const tint = poisoned ? POISON_TINT : AGED_TINT;
+      const k = (dead ? 1 : 1 - this.vitality) * (poisoned ? 0.35 : 0.4);
+      r = lerp(r, tint[0], k); g = lerp(g, tint[1], k); b = lerp(b, tint[2], k);
     }
-    push();
-    translate(this.location.x, this.location.y);
-    rotate(this.heading);
-    if (this.age < EMERGE_FRAMES) scale(lerp(0.4, 1, this.age / EMERGE_FRAMES));
-    stroke(r, g, b);
-    strokeWeight(0.7);
+    pg.push();
+    pg.translate(this.location.x, this.location.y);
+    pg.rotate(this.heading);
+    if (this.newborn && this.age < EMERGE_FRAMES) pg.scale(lerp(0.4, 1, this.age / EMERGE_FRAMES));
+    pg.stroke(r, g, b);
+    pg.strokeWeight(0.7);
     const swing = dead ? 0 : Math.min(1, this.velocity.mag() / 1.5) * 1.3;
     for (let side = -1; side <= 1; side += 2) {
       for (let k = 0; k < 3; k++) {
         const hipX = 2 - k * 1.1;
         let kx, ky, fx, fy;
-        if (dead) {
+        if (crushed) {
+          // Flattened: legs splayed out flat.
+          kx = hipX + KNEE[k] * 1.3; ky = side * 3.8; fx = hipX + FOOT[k] * 1.35; fy = side * 6;
+        } else if (dead) {
           kx = hipX + KNEE[k] * 0.6; ky = side * 2.6; fx = hipX + KNEE[k] * 0.2; fy = side * 1.6;
         } else {
           // Tripod gait: front and back legs of one side move with the middle leg of the other.
           const s = Math.sin(this.gait + (k % 2 ? PI : 0) + (side > 0 ? PI : 0)) * swing;
           kx = hipX + KNEE[k] + s * 0.4; ky = side * 3.1; fx = hipX + FOOT[k] + s; fy = side * 5.2;
         }
-        line(hipX, side * 0.8, kx, ky);
-        line(kx, ky, fx, fy);
+        pg.line(hipX, side * 0.8, kx, ky);
+        pg.line(kx, ky, fx, fy);
       }
-      const tw = dead ? -0.6 : Math.sin(this.gait * 0.7 + side) * 0.4;
-      line(6.2, side * 0.8, 8.6, side * (2.6 + tw));
-      line(8.6, side * (2.6 + tw), 10.4, side * (2.1 + tw));
+      const tw = crushed ? 1.2 : dead ? -0.6 : Math.sin(this.gait * 0.7 + side) * 0.4;
+      pg.line(6.2, side * 0.8, 8.6, side * (2.6 + tw));
+      pg.line(8.6, side * (2.6 + tw), 10.4, side * (2.1 + tw));
     }
-    noStroke();
-    fill(r, g, b);
-    ellipse(-4.4, 0, 6.8, 4.8);   // gaster
-    ellipse(-0.6, 0, 1.8, 1.4);   // petiole
-    ellipse(1.6, 0, 4.2, 2.6);    // thorax
-    ellipse(5.1, 0, 3.8, 3.6);    // head
-    fill(255, 255, 255, 34);
-    ellipse(-5, -1, 2.6, 1.3);
-    ellipse(5.4, -0.7, 1.6, 1);
+    pg.noStroke();
+    pg.fill(r, g, b);
+    if (crushed) pg.scale(0.95, 1.4);
+    pg.ellipse(-4.4, 0, 6.8, 4.8);   // gaster
+    pg.ellipse(-0.6, 0, 1.8, 1.4);   // petiole
+    pg.ellipse(1.6, 0, 4.2, 2.6);    // thorax
+    pg.ellipse(5.1, 0, 3.8, 3.6);    // head
+    pg.fill(255, 255, 255, 34);
+    pg.ellipse(-5, -1, 2.6, 1.3);
+    pg.ellipse(5.4, -0.7, 1.6, 1);
     if (this.carrying) {
       const c = FOOD_TYPES[this.carrying];
-      fill(...c.fill);
-      stroke(...c.edge);
-      strokeWeight(0.4);
-      rectMode(CENTER);
-      rect(8.4, 0, 3.4, 3.4, 0.6);
+      pg.fill(...c.fill);
+      pg.stroke(...c.edge);
+      pg.strokeWeight(0.4);
+      pg.rectMode(CENTER);
+      pg.rect(8.4, 0, 3.4, 3.4, 0.6);
     }
-    pop();
+    pg.pop();
   }
 }
