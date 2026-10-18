@@ -33,11 +33,12 @@ export class Colony {
   }
   dispose() { if (this.corpses) this.corpses.remove(); }
   get alive() { return this.ants.reduce((n, a) => n + (a.isDead ? 0 : 1), 0); }
-  // Add up to `count` ants at the nest without going over MAX_ANTS living ants.
-  spawn(count, newborn = false) {
+  // Add up to `count` ants at the nest without going over MAX_ANTS living ants. `options` are
+  // passed to each Ant ({ newborn } for hatchlings, { mixedAge } for the starting colony).
+  spawn(count, options = {}) {
     const n = Math.min(count, MAX_ANTS - this.alive);
     for (let i = 0; i < n; i++) {
-      this.ants.push(new Ant(p5.Vector.add(this.nest.origin, p5.Vector.random2D().mult(random(this.nest.radius))), newborn));
+      this.ants.push(new Ant(p5.Vector.add(this.nest.origin, p5.Vector.random2D().mult(random(this.nest.radius))), options));
     }
     return n;
   }
@@ -54,7 +55,7 @@ export class Colony {
     if (this.birthProgress < 1) return;
     this.birthProgress = 0;
     this.birthWait = random(...BIRTH_FRAMES);
-    const born = this.spawn(this.broodSize, true);
+    const born = this.spawn(this.broodSize, { newborn: true });
     this.stats.born += born;
     this.reserve = Math.max(0, this.reserve - born * NEWBORN_MEAL);
   }

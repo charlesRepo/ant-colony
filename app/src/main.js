@@ -50,7 +50,7 @@ function reset() {
   foods = [];
   if (colony) colony.dispose();
   colony = new Colony(nest);
-  colony.spawn(START_ANTS);
+  colony.spawn(START_ANTS, { mixedAge: true });
   predator = new Predator(lair);
   panel.setPredator(false);
 }

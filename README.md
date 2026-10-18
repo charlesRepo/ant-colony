@@ -66,7 +66,7 @@ Times below assume 60 frames per second. The simulation counts frames, so on a s
   - Every 10 in reserve adds one more ant per hatching, up to 5 at once.
   - Each newborn eats 1.5 from the reserve, so a boom fades once food stops coming in.
 - Newborns climb out of the nest pale and darken over about 15 seconds. They start foraging straight away.
-- **Old age:** an ant lives 5 minutes plus a random 0–1 minute. When its time is up it drops whatever it carries, slows to a stop over 5 seconds and dies.
+- **Old age:** an ant lives 1 minute plus a random 0–20 seconds. When its time is up it drops whatever it carries, slows to a stop over 5 seconds and dies. The starting colony has ants of mixed ages, so they don't all die at once.
 
 ### Foraging and food
 

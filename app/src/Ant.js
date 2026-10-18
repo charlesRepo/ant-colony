@@ -12,8 +12,8 @@ const POISON_TINT = [92, 108, 36];
 const CALLOW_TINT = [172, 120, 72];  // newly hatched ants are pale and darken as they mature
 const CALLOW_FRAMES = 900;
 const EMERGE_FRAMES = 40;           // a newborn grows to full size as it climbs out of the nest
-const LIFESPAN = 18000;             // an ant lives 5 minutes (at 60 fps)...
-const LIFESPAN_SPREAD = 3600;       // ...plus up to 1 more, so ants that appeared together don't all die together
+const LIFESPAN = 3600;              // an ant lives 1 minute (at 60 fps)...
+const LIFESPAN_SPREAD = 1200;       // ...plus up to 20 s more, so ants that appeared together don't all die together
 const OLD_AGE_FADE = 300;           // then slows to a stop over 5 s and dies
 const AGED_TINT = [104, 92, 80];    // old ants grey a little
 const STAIN = [44, 50, 14];
@@ -30,7 +30,9 @@ const KNEE = [1.6, 0.2, -1.6];
 const FOOT = [4.2, 0.6, -4.2];
 
 export class Ant {
-  constructor(location, newborn = false) {
+  // `newborn`: just hatched (pale at first). `mixedAge`: part of the starting colony, already
+  // partway through its life, so the first generation doesn't all die at once.
+  constructor(location, { newborn = false, mixedAge = false } = {}) {
     this.location = location.copy();
     this.previous = location.copy();
     this.heading = random(TWO_PI);
@@ -59,8 +61,8 @@ export class Ant {
     this.lunge = random(TWO_PI);
     this.gait = random(TWO_PI);
     this.newborn = newborn;
-    this.age = 0;             // frames alive
     this.lifespan = LIFESPAN + random(LIFESPAN_SPREAD);
+    this.age = mixedAge ? random(this.lifespan * 0.7) : 0;   // frames alive
     this.oldAge = 0;          // frames spent dying of old age
     this.cause = null;        // 'poison' or 'old' once dead
     this.deathAge = 0;
